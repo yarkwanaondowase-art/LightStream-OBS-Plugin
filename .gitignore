@@ -1,0 +1,8 @@
+build/
+obs-build/
+obs-studio/
+package/
+.vs/
+.vscode/
+*.user
+*.suo
