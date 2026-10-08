@@ -1,0 +1,44 @@
+name: Build Windows Plugin
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Visual Studio
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install CMake
+        uses: lukka/get-cmake@latest
+
+      - name: Configure
+        run: |
+          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: |
+          cmake --build build --config Release
+
+      - name: Package plugin
+        run: |
+          mkdir package
+          if (Test-Path "build\Release") {
+            Copy-Item "build\Release\*" "package\" -Recurse -Force
+          } elseif (Test-Path "build") {
+            Copy-Item "build\*" "package\" -Recurse -Force
+          }
+
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-Plugin
+          path: package
