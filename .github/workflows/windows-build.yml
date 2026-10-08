@@ -11,7 +11,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout plugin
         uses: actions/checkout@v4
 
       - name: Set up Visual Studio
@@ -19,6 +19,15 @@ jobs:
 
       - name: Install CMake
         uses: lukka/get-cmake@latest
+
+      - name: Download OBS Studio source
+        run: |
+          git clone --depth 1 https://github.com/obsproject/obs-studio.git obs-studio
+
+      - name: Set OBS source directory
+        shell: pwsh
+        run: |
+          "OBS_SOURCE_DIR=$env:GITHUB_WORKSPACE\obs-studio" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8
 
       - name: Configure
         run: |
@@ -29,11 +38,12 @@ jobs:
           cmake --build build --config Release
 
       - name: Package plugin
+        shell: pwsh
         run: |
-          mkdir package
+          New-Item -ItemType Directory -Force -Path package
           if (Test-Path "build\Release") {
             Copy-Item "build\Release\*" "package\" -Recurse -Force
-          } elseif (Test-Path "build") {
+          } else {
             Copy-Item "build\*" "package\" -Recurse -Force
           }
 
