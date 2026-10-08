@@ -20,20 +20,33 @@ jobs:
       - name: Install CMake
         uses: lukka/get-cmake@latest
 
-      - name: Download OBS Studio source
-        run: |
-          git clone --depth 1 https://github.com/obsproject/obs-studio.git obs-studio
+      - name: Checkout OBS Studio
+        uses: actions/checkout@v4
+        with:
+          repository: obsproject/obs-studio
+          path: obs-studio
+          fetch-depth: 1
 
-      - name: Set OBS source directory
+      - name: Configure OBS Studio
         shell: pwsh
         run: |
-          "OBS_SOURCE_DIR=$env:GITHUB_WORKSPACE\obs-studio" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8
+          cmake -S obs-studio -B obs-build
 
-      - name: Configure
+      - name: Build OBS libobs
+        shell: pwsh
         run: |
-          cmake -B build -S . -DCMAKE_BUILD_TYPE=Release
+          cmake --build obs-build --config Release --target libobs
 
-      - name: Build
+      - name: Configure LightStream
+        shell: pwsh
+        run: |
+          cmake -S . -B build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DOBS_SOURCE_DIR="$env:GITHUB_WORKSPACE\obs-studio" `
+            -DOBS_BUILD_DIR="$env:GITHUB_WORKSPACE\obs-build"
+
+      - name: Build LightStream
+        shell: pwsh
         run: |
           cmake --build build --config Release
 
@@ -41,13 +54,17 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path package
-          if (Test-Path "build\Release") {
-            Copy-Item "build\Release\*" "package\" -Recurse -Force
-          } else {
-            Copy-Item "build\*" "package\" -Recurse -Force
+
+          $dll = Get-ChildItem -Path build -Filter "lightstream.dll" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+
+          if ($null -eq $dll) {
+            Write-Error "lightstream.dll was not produced."
+            exit 1
           }
 
-      - name: Upload build
+          Copy-Item $dll.FullName package\lightstream.dll
+
+      - name: Upload plugin
         uses: actions/upload-artifact@v4
         with:
           name: Windows-Plugin
